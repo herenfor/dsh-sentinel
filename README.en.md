@@ -86,7 +86,7 @@ Browser notification sound depends on the browser and Windows settings. The Wind
 The package also ships an optional Windows tray icon that treats DSH like an ordinary app:
 
 - Launch it: DSH starts if it is not running, then the page opens; if DSH is already running, the page opens.
-- Click the icon to open the page. "停止 DSH" in the right-click menu stops DSH and removes the icon.
+- Click the icon to open the page. "重启 DSH" (restart) in the right-click menu stops DSH and starts it again, for example after changing plugins or configuration; it asks first because running tasks are interrupted, and opens the page once DSH is back. "停止 DSH" stops DSH and removes the icon.
 - The menu follows the Windows dark/light setting.
 
 It is not a DSH plugin, so install it once from WSL:

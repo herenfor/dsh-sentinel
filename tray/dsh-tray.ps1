@@ -1,6 +1,6 @@
 ﻿# Windows half of the optional DSH tray icon. It treats DSH like an ordinary app: launching it
-# starts DSH when needed and opens the page; clicking the icon opens the page; "停止 DSH" stops
-# DSH and removes the icon. Every action goes through tray/dsh-tray-host.sh inside WSL, named in
+# starts DSH when needed and opens the page; clicking the icon opens the page; "重启 DSH" stops and
+# starts it again (for example to load changed plugins); "停止 DSH" stops DSH and removes the icon. Every action goes through tray/dsh-tray-host.sh inside WSL, named in
 # dsh-tray.json next to this script (written by tray/install.sh).
 param(
   # Autostart at sign-in: show the icon only, without starting DSH or opening a browser.
@@ -158,6 +158,19 @@ function Stop-Dsh {
   Exit-Tray
 }
 
+# Restart reloads plugins and configuration; DSH prints a new sign-in URL, so the page opens again.
+function Restart-Dsh {
+  if ($script:starting) { return }
+  if (-not (Test-Running)) { Start-Dsh; return }
+  $answer = [System.Windows.Forms.MessageBox]::Show(
+    '重启 DSH 会中断正在运行的任务和后台任务。确定重启吗？', 'DSH',
+    [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Warning)
+  if ($answer -ne [System.Windows.Forms.DialogResult]::Yes) { return }
+  $icon.Text = 'DSH：正在重启…'
+  if ((Invoke-TrayHost 'stop' -Wait) -ne 0) { Show-Tip 'DSH 没有停下来，请在终端里检查。' 'Warning'; return }
+  Start-Dsh
+}
+
 $dark = Test-DarkMode
 $renderer = New-Object DshMenuRenderer $dark
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
@@ -168,8 +181,9 @@ $menu.Padding = New-Object System.Windows.Forms.Padding(0, 5, 0, 5)
 $menu.DropShadowEnabled = $true
 $menu.Add_HandleCreated({ $renderer.RoundCorners($menu.Handle) })
 $openItem = $menu.Items.Add('打开 DSH')
+$restartItem = $menu.Items.Add('重启 DSH')
 $stopItem = $menu.Items.Add('停止 DSH')
-foreach ($item in @($openItem, $stopItem)) {
+foreach ($item in @($openItem, $restartItem, $stopItem)) {
   $item.AutoSize = $false
   $item.Size = New-Object System.Drawing.Size(150, 32)
   $item.Padding = New-Object System.Windows.Forms.Padding(12, 0, 12, 0)
@@ -181,6 +195,7 @@ function Update-State([bool]$Running) {
   $icon.Text = if ($Running) { "DSH：运行中（$Port）" } elseif ($script:starting) { 'DSH：正在启动…' } else { 'DSH：未运行，单击启动' }
   $openItem.Text = if ($Running) { '打开 DSH' } else { '启动 DSH' }
   $openItem.Enabled = -not $script:starting
+  $restartItem.Enabled = $Running -and -not $script:starting
 }
 
 # A failed click must not take the tray down with it.
@@ -189,6 +204,7 @@ function Invoke-Safely([scriptblock]$Action) {
 }
 
 $openItem.Add_Click({ Invoke-Safely { Open-Dsh } })
+$restartItem.Add_Click({ Invoke-Safely { Restart-Dsh } })
 $stopItem.Add_Click({ Invoke-Safely { Stop-Dsh } })
 $icon.Add_MouseClick({ if ($_.Button -eq [System.Windows.Forms.MouseButtons]::Left) { Invoke-Safely { Open-Dsh } } })
 
