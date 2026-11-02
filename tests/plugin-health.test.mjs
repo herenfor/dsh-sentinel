@@ -1,9 +1,14 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { test } from 'node:test'
+import { after, test } from 'node:test'
 import { apply, findProblems, healthPage } from '../plugin-health.mjs'
+
+// Temporary directories are removed once this file's tests finish.
+const tempDirs = []
+after(() => { for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true }) })
+const tempDir = (prefix) => { const dir = mkdtempSync(join(tmpdir(), prefix)); tempDirs.push(dir); return dir }
 
 const row = (id, fiber, extra = {}) => ({ id: `include:${id}`, options: { id, name: `pkg-${id}` }, fiber, ...extra })
 
@@ -50,7 +55,7 @@ const call = (handler) => {
 }
 
 test('routes need DSH sign-in; checks once after start, then only when plugin state changes', async () => {
-  process.env.DSH_HOME = mkdtempSync(join(tmpdir(), 'sentinel-health-'))
+  process.env.DSH_HOME = tempDir('sentinel-health-')
   const entries = [row('ok', { state: 2 }), row('boom', { state: 3, _error: 'Error: x' })]
   const ctx = fakeCtx(entries)
   apply(ctx, { notify: false, settleSeconds: 0.01, debounceMs: 10 })

@@ -1,10 +1,15 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { chmodSync, existsSync, mkdtempSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { chmodSync, existsSync, mkdtempSync, readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import test from 'node:test'
+import test, { after } from 'node:test'
 import { fileURLToPath } from 'node:url'
+
+// Temporary directories are removed once this file's tests finish.
+const tempDirs = []
+after(() => { for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true }) })
+const tempDir = (prefix) => { const dir = mkdtempSync(join(tmpdir(), prefix)); tempDirs.push(dir); return dir }
 
 const hostScript = fileURLToPath(new URL('../tray/dsh-tray-host.sh', import.meta.url))
 // The host script runs inside WSL and relies on bash, setsid and /proc.
@@ -12,7 +17,7 @@ const linuxOnly = { skip: process.platform !== 'linux' && 'the tray host script 
 
 // A stand-in `dsh` that prints its sign-in line and stays alive under its own command line.
 function sandbox() {
-  const root = mkdtempSync(join(tmpdir(), 'dsh-tray-'))
+  const root = tempDir('dsh-tray-')
   const bin = join(root, 'bin')
   mkdirSync(bin)
   writeFileSync(join(bin, 'dsh'), '#!/usr/bin/env bash\necho "dsh web: http://127.0.0.1:3999/?token=FAKE"\ntrap "exit 0" TERM\nwhile :; do sleep 0.2; done\n')
@@ -61,7 +66,7 @@ test('unknown commands are rejected', linuxOnly, () => {
 // runs clear_console, which fails without a console; under set -e that turned every `exit 0` into 1,
 // so the tray reported "DSH 没有停下来" although DSH had stopped.
 test('a failing ~/.bash_logout in the tray login shell does not change the exit status', linuxOnly, () => {
-  const home = mkdtempSync(join(tmpdir(), 'dsh-tray-home-'))
+  const home = tempDir('dsh-tray-home-')
   writeFileSync(join(home, '.bash_logout'), 'if [ "$SHLVL" = 1 ]; then false; fi\n')
   mkdirSync(join(home, 'config', 'dsh-tray'), { recursive: true })
   writeFileSync(join(home, 'config', 'dsh-tray', 'env'), "DSH_TRAY_STOP='exit 0'\n")

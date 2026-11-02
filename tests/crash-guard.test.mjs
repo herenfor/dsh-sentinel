@@ -1,13 +1,18 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, utimesSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
-import { test } from 'node:test'
+import { after, test } from 'node:test'
 import { buildReport, guessCulprit, isCrash, mask, profileFromArgv, reportMarkdown, warningPage } from '../crash-report.mjs'
 import { watch } from '../crash-watchdog.mjs'
 import { parseArgs, rescueCommand } from '../bin/dsh-sentinel-run.mjs'
 import { sweepStaleRuns } from '../crash-guard.mjs'
+
+// Temporary directories are removed once this file's tests finish.
+const tempDirs = []
+after(() => { for (const dir of tempDirs) rmSync(dir, { recursive: true, force: true }) })
+const tempDir = (prefix) => { const dir = mkdtempSync(join(tmpdir(), prefix)); tempDirs.push(dir); return dir }
 
 const posix = sep === '/'
 
@@ -80,7 +85,7 @@ test('launcher arguments and the command used to start the emergency DSH', () =>
 })
 
 function fakeRun(t, exit) {
-  const home = mkdtempSync(join(tmpdir(), 'sentinel-home-'))
+  const home = tempDir('sentinel-home-')
   const runs = join(home, 'logs', 'dsh-sentinel', 'runs')
   mkdirSync(runs, { recursive: true })
   const host = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 400)'], { stdio: 'ignore' })
@@ -107,7 +112,7 @@ test('watchdog: a clean exit or a host that vanished without a record does nothi
 })
 
 test('watchdog: plugin turned off while DSH keeps running → the watchdog quits', async (t) => {
-  const home = mkdtempSync(join(tmpdir(), 'sentinel-home-'))
+  const home = tempDir('sentinel-home-')
   const runs = join(home, 'runs')
   mkdirSync(runs)
   const runFile = join(runs, `${process.pid}-1.json`)
@@ -117,7 +122,7 @@ test('watchdog: plugin turned off while DSH keeps running → the watchdog quits
 })
 
 test('records of runs whose DSH is gone are swept at startup; live and recent ones stay', () => {
-  const runs = mkdtempSync(join(tmpdir(), 'sentinel-runs-'))
+  const runs = tempDir('sentinel-runs-')
   const dead = 2 ** 22 + 12345  // above Linux pid_max defaults: never a live process
   const files = {
     [`${dead}-1.json`]: { pid: dead }, [`${dead}-1.disposed`]: '', [`${dead}.exit.json`]: { code: 130 },
