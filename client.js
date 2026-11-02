@@ -66,6 +66,52 @@ window.__ModuleLoader__.load({
           catch { channel.port2.close(); finish(false) }
         })
 
+        // Settings styling follows the official guidance for plugins: no Harness UI package imports; markup and CSS
+        // copied from the host's settings rows, Switch and Button, renamed under our prefix, colors only from the
+        // host theme tokens (--dsw-alias-*), so light/dark switching keeps working.
+        const css = [
+          '.dsh-sentinel-section{display:flex;flex-direction:column;width:100%;color:var(--dsw-alias-label-primary)}',
+          '.dsh-sentinel-row{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:16px 0;border-bottom:.5px solid var(--dsw-alias-border-l2)}',
+          '.dsh-sentinel-row:last-child{border-bottom:none}',
+          '.dsh-sentinel-title{font-size:14px;line-height:20px}',
+          '.dsh-sentinel-description{margin-top:4px;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}',
+          '.dsh-sentinel-status{display:inline-flex;align-items:center;gap:6px;margin-top:6px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}',
+          '.dsh-sentinel-dot{flex:none;width:6px;height:6px;border-radius:50%;background:var(--dsw-alias-label-tertiary)}',
+          '.dsh-sentinel-dot[data-tone=ok]{background:var(--dsw-alias-state-success-primary)}',
+          '.dsh-sentinel-dot[data-tone=error]{background:var(--dsw-alias-state-error-primary)}',
+          '.dsh-sentinel-switch{box-sizing:border-box;position:relative;flex:0 0 auto;width:36px;height:20px;padding:2px;border:0;border-radius:999px;background:var(--dsw-alias-border-l3);cursor:pointer}',
+          '.dsh-sentinel-switch[aria-checked=true]{background:var(--dsw-alias-brand-primary)}',
+          '.dsh-sentinel-switch:disabled{cursor:default;opacity:.5}',
+          '.dsh-sentinel-switch:focus-visible{outline:var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color,var(--dsw-alias-state-business-primary));outline-offset:2px}',
+          '.dsh-sentinel-thumb{display:block;width:16px;height:16px;border-radius:50%;background:var(--dsw-alias-label-primary-foreground);transition:transform .12s ease}',
+          '.dsh-sentinel-switch[aria-checked=false] .dsh-sentinel-thumb{background:var(--dsw-alias-switch-thumb)}',
+          '.dsh-sentinel-switch[aria-checked=true] .dsh-sentinel-thumb{transform:translate(16px)}',
+          '.dsh-sentinel-button{box-sizing:border-box;display:inline-flex;flex:none;align-items:center;justify-content:center;height:28px;padding:0 10px;border:.5px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;line-height:18px;text-decoration:none;white-space:nowrap;cursor:pointer}',
+          '.dsh-sentinel-button:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}',
+          '.dsh-sentinel-button:disabled{cursor:not-allowed;opacity:.4}',
+          '.dsh-sentinel-list{display:flex;flex-direction:column;gap:8px;margin:0 0 16px;padding:0;list-style:none}',
+          '.dsh-sentinel-card{padding:10px 14px;border:.5px solid var(--dsw-alias-settings-card-stroke);border-radius:var(--dsw-radius-xl);background:var(--dsw-alias-settings-card-fill)}',
+          '.dsh-sentinel-card code,.dsh-sentinel-code{font-family:var(--ds-font-family-code);font-size:12px}',
+          '.dsh-sentinel-code{display:block;margin:8px 0 0;padding:8px 10px;border-radius:var(--dsw-radius-md);background:var(--dsw-alias-settings-card-fill);color:var(--dsw-alias-label-primary);white-space:pre}',
+        ].join('')
+        // Same pattern as the host's own plugin CSS: one tagged <style> in <head>; ours is removed on unload so a
+        // reloaded version brings its own.
+        if (window.document.head && typeof window.document.createElement === 'function') {
+          const style = window.document.createElement('style')
+          style.dataset.plugin = 'dsh-sentinel'
+          style.textContent = css
+          window.document.head.appendChild(style)
+          disposers.push(() => style.remove())
+        }
+        const h = React.createElement
+        const row = (title, description, control, extra) => h('div', { className: 'dsh-sentinel-row' },
+          h('div', null, h('div', { className: 'dsh-sentinel-title' }, title),
+            description ? h('div', { className: 'dsh-sentinel-description' }, description) : null, extra ?? null),
+          control ?? null)
+        const status = (text, tone) => h('div', { className: 'dsh-sentinel-status', role: 'status' },
+          h('span', { className: 'dsh-sentinel-dot', 'data-tone': tone }), text)
+        const button = (text, onClick, disabled = false) => h('button', { type: 'button', className: 'dsh-sentinel-button', onClick, disabled }, text)
+
         function NotificationSettings() {
           const [, refresh] = React.useState(0)
           React.useEffect(() => {
@@ -74,41 +120,40 @@ window.__ModuleLoader__.load({
             return () => observers.delete(update)
           }, [])
           const permission = window.Notification?.permission
-          const status = !supported ? '当前页面无法使用浏览器通知。' : !enabled ? '浏览器通知已关闭。' :
-            ready() ? '当前浏览器已启用任务通知。' : permission === 'denied' ? '通知权限被阻止，请在浏览器的网站设置中允许通知。' :
-            failed ? '浏览器通知暂不可用，将使用 Windows 通知。' : permission === 'granted' ? '正在准备浏览器通知…' : '尚未允许通知。'
-          const button = (text, onClick, disabled = false) => React.createElement('button', {
-            type: 'button', onClick, disabled: busy || disabled, style: { padding: '8px 12px', cursor: 'pointer' },
-          }, text)
-          return React.createElement('section', { style: { padding: '20px', display: 'grid', gap: '14px' } },
-            React.createElement('h2', null, '任务通知'),
-            React.createElement('p', null, '任务完成后显示系统通知。没有可用浏览器页面时，使用 Windows 通知保底。'),
-            React.createElement('p', { role: 'status' }, status),
-            React.createElement('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap' } },
-              button('启用浏览器通知', async () => {
-                busy = true; publish()
-                try {
-                  // Request permission directly from the human's button click.
-                  const permission = await window.Notification.requestPermission()
-                  if (permission === 'granted') {
-                    enabled = true
-                    try { window.localStorage.setItem(enabledKey, 'true') } catch {}
-                    await initialize()
+          const [text, tone] = !supported ? ['当前页面无法使用浏览器通知，会用 Windows 通知。'] : !enabled ? ['已关闭，会用 Windows 通知。'] :
+            ready() ? ['已启用', 'ok'] : permission === 'denied' ? ['通知权限被浏览器阻止，请在网站设置里允许通知。', 'error'] :
+            failed ? ['暂不可用，会用 Windows 通知。', 'error'] : permission === 'granted' ? ['正在准备…'] : ['尚未允许通知，打开开关时浏览器会询问。']
+          const on = supported && enabled && permission === 'granted'
+          return h('div', { className: 'dsh-sentinel-section' },
+            row('浏览器通知', '任务完成、等你回答或需要审批时弹出系统通知。没有打开的浏览器页面时，用 Windows 通知保底。',
+              h('button', {
+                type: 'button', role: 'switch', 'aria-checked': on, 'aria-label': '浏览器通知', className: 'dsh-sentinel-switch',
+                disabled: busy || !supported || (!on && permission === 'denied'),
+                onClick: async () => {
+                  if (on) {
+                    enabled = false
+                    try { window.localStorage.setItem(enabledKey, 'false') } catch {}
+                    return publish()
                   }
-                } catch { failed = true }
-                finally { busy = false; publish() }
-              }, !supported || (ready() && !failed)),
-              button('测试通知', async () => {
-                busy = true; publish()
-                try {
-                  failed = !await showNotification({ test: true, ticket: window.crypto.randomUUID(), deadline: Date.now() + 2500 })
-                } finally { busy = false; publish() }
-              }, !ready()),
-              button('关闭浏览器通知', () => {
-                enabled = false
-                try { window.localStorage.setItem(enabledKey, 'false') } catch {}
-                publish()
-              }, !enabled)))
+                  busy = true; publish()
+                  try {
+                    // Request permission directly from the human's click.
+                    if (await window.Notification.requestPermission() === 'granted') {
+                      enabled = true
+                      try { window.localStorage.setItem(enabledKey, 'true') } catch {}
+                      await initialize()
+                    }
+                  } catch { failed = true }
+                  finally { busy = false; publish() }
+                },
+              }, h('span', { className: 'dsh-sentinel-thumb' })),
+              status(text, tone)),
+            row('测试通知', '发一条测试通知，确认能收到。', button('发送', async () => {
+              busy = true; publish()
+              try {
+                failed = !await showNotification({ test: true, ticket: window.crypto.randomUUID(), deadline: Date.now() + 2500 })
+              } finally { busy = false; publish() }
+            }, busy || !ready())))
         }
         disposers.push(ctx.slots.inject('settings.section', () => ctx.slots.register({
           name: 'settings.section', id: 'task-notify', order: 90, label: () => '任务通知',
@@ -125,20 +170,24 @@ window.__ModuleLoader__.load({
               .then((next) => { if (alive) setState(next) })
             return () => { alive = false }
           }, [])
-          const p = (text, extra) => React.createElement('p', extra ?? null, text)
-          const body = state.loading ? [p('正在检查…')]
-            : state.error ? [p('读取失败，请刷新页面再试。')]
-            : state.off ? [p('插件健康检查没有启用。启用后，DSH 启动完成时检查一次已启用的插件，之后插件状态有变化（热重载、安装或启停插件）时再查；有插件没正常运行时发 Windows 通知。'),
-              p('启用方法：在 cordis.patch.yml 里加上下面两行，然后重启 DSH。'),
-              React.createElement('pre', { style: { padding: '10px', overflowX: 'auto' } }, '- id: sentinel-health\n  disabled: false')]
-            : state.report.problems.length === 0 ? [p(`所有已启用的插件（${state.report.enabled} 个）都在正常运行。`, { role: 'status' })]
-            : [p(`${state.report.problems.length} 个已启用的插件没有正常运行：`, { role: 'status' }),
-              React.createElement('ul', { style: { paddingLeft: '20px', display: 'grid', gap: '6px' } }, state.report.problems.map((item) =>
-                React.createElement('li', { key: item.id }, React.createElement('code', null, item.id), '：', item.reason)))]
-          return React.createElement('section', { style: { padding: '20px', display: 'grid', gap: '14px' } },
-            React.createElement('h2', null, '插件健康'),
-            ...body,
-            state.report ? React.createElement('a', { href: new URL('dsh-sentinel/health', window.document.baseURI).href, target: '_blank', rel: 'noopener' }, '打开健康页（界面坏了时也能直接访问）') : null)
+          const what = 'DSH 启动完成时检查一次已启用的插件，之后插件状态有变化（热重载、安装或启停插件）时再查。'
+          if (state.off) {
+            return h('div', { className: 'dsh-sentinel-section' },
+              row('插件健康检查', `${what}有插件没正常运行时发 Windows 通知。`, null, status('没有启用')),
+              row('启用方法', '在 cordis.patch.yml 里加上下面两行，然后重启 DSH。', null,
+                h('code', { className: 'dsh-sentinel-code' }, '- id: sentinel-health\n  disabled: false')))
+          }
+          const problems = state.report?.problems ?? []
+          const summary = state.loading ? status('正在检查…') : state.error ? status('读取失败，请刷新页面再试。', 'error')
+            : problems.length === 0 ? status(`已启用的 ${state.report.enabled} 个插件都在正常运行`, 'ok')
+            : status(`${problems.length} 个已启用的插件没有正常运行`, 'error')
+          const page = state.report ? h('a', { className: 'dsh-sentinel-button', href: new URL('dsh-sentinel/health', window.document.baseURI).href, target: '_blank', rel: 'noopener' }, '打开健康页') : null
+          return h('div', { className: 'dsh-sentinel-section' },
+            row('插件状态', `${what}聊天界面坏了时，健康页也能直接打开。`, page, summary),
+            problems.length > 0 ? h('ul', { className: 'dsh-sentinel-list' }, problems.map((item) =>
+              h('li', { key: `${item.id}|${item.kind}`, className: 'dsh-sentinel-card' },
+                h('div', { className: 'dsh-sentinel-title' }, h('code', null, item.id)),
+                h('div', { className: 'dsh-sentinel-description' }, item.reason)))) : null)
         }
         disposers.push(ctx.slots.inject('settings.section', () => ctx.slots.register({
           name: 'settings.section', id: 'sentinel-health', order: 91, label: () => '插件健康',
