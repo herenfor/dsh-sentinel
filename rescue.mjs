@@ -1,9 +1,9 @@
 // Rescue after a crash: write the report and warning page, start an emergency DSH from the official web template,
 // then open the page. Shared by the in-process watchdog and the dsh-sentinel-run launcher.
 import { spawn, spawnSync } from 'node:child_process'
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { closeSync, copyFileSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { helpPrompt, mask, reportMarkdown, warningPage } from './crash-report.mjs'
 
@@ -28,14 +28,28 @@ export function liveRescue(dir) {
 const isWsl = () => Boolean(process.env.WSL_DISTRO_NAME) || (() => { try { return /microsoft/i.test(readFileSync('/proc/sys/kernel/osrelease', 'utf8')) } catch { return false } })()
 const has = (cmd) => spawnSync('sh', ['-c', `command -v ${cmd}`], { stdio: 'ignore' }).status === 0
 
+// Windows treats a page under \\wsl.localhost as a network location and asks before opening it, so under WSL
+// the page is copied to the Windows temp folder first. Returns the copy, or undefined to open the original.
+function windowsCopy(file) {
+  const temp = spawnSync('cmd.exe', ['/c', 'echo %TEMP%'], { cwd: '/mnt/c', encoding: 'utf8' }).stdout?.trim()
+  if (!temp || temp.includes('%')) return undefined
+  const dir = spawnSync('wslpath', ['-u', temp], { encoding: 'utf8' }).stdout?.trim()
+  if (!dir) return undefined
+  try {
+    mkdirSync(join(dir, 'dsh-sentinel'), { recursive: true })
+    const copy = join(dir, 'dsh-sentinel', `${basename(dirname(file))}.html`)
+    copyFileSync(file, copy)
+    return copy
+  } catch { return undefined }
+}
+
 /** Open a file in the default browser. Best effort; returns whether an opener was started. */
 export function openInBrowser(file) {
   let cmd, args
   if (process.platform === 'win32') [cmd, args] = ['cmd.exe', ['/c', 'start', '', file]]
   else if (process.platform === 'darwin') [cmd, args] = ['open', [file]]
-  else if (isWsl() && has('wslview')) [cmd, args] = ['wslview', [file]]
   else if (isWsl() && has('explorer.exe')) {
-    const win = spawnSync('wslpath', ['-w', file], { encoding: 'utf8' }).stdout?.trim()
+    const win = spawnSync('wslpath', ['-w', windowsCopy(file) ?? file], { encoding: 'utf8' }).stdout?.trim()
     if (!win) return false
     ;[cmd, args] = ['explorer.exe', [win]]
   } else if (has('xdg-open')) [cmd, args] = ['xdg-open', [file]]
