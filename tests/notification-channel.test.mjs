@@ -3,6 +3,10 @@ import { createServer } from 'node:http'
 import { test } from 'node:test'
 import { createNotificationChannel } from '../notification-channel.mjs'
 
+// These requests go to a local test server. With NODE_USE_ENV_PROXY, fetch honours HTTP_PROXY, and Node does not
+// understand wildcard NO_PROXY entries such as `127.*` (common on Windows / WSL), so list the loopback address exactly.
+for (const key of ['NO_PROXY', 'no_proxy']) process.env[key] = [process.env[key], '127.0.0.1'].filter(Boolean).join(',')
+
 async function fixture(t) {
   const routes = new Map()
   const cleanup = []
