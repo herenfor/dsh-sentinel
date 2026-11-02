@@ -1,6 +1,6 @@
 // Register the browser half using DSH's client module contract.
 window.__ModuleLoader__.load({
-  id: 'dsh-task-notify',
+  id: 'dsh-sentinel',  // must equal the package name: the client module loader looks the bundle up by it
   factory: (require) => {
     const React = require('react')
     return {

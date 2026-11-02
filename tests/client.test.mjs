@@ -106,3 +106,10 @@ test('old click messages are ignored and disposal closes the completion stream',
   assert.equal(h.timersCleared, 1)
   assert.equal(h.windowListeners.size, 0)
 })
+
+test('the browser half registers under the package name, which is how DSH looks the bundle up', async () => {
+  const { name } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
+  let id
+  vm.runInNewContext(source, { window: { __ModuleLoader__: { load(module) { id = module.id } } } })
+  assert.equal(id, name)
+})

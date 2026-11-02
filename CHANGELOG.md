@@ -1,5 +1,9 @@
 # 更新记录
 
+## 0.2.2 · 2026-11-02
+
+- 修复改名后网页打不开（0.1.0 起）：浏览器端仍以旧名 `dsh-task-notify` 注册，DSH 按包名 `dsh-sentinel` 查找，报 “loaded without registering "dsh-sentinel"”，整个界面停在 Failed to load plugins。现在按包名注册，并加了测试保证两者一致。
+
 ## 0.2.1 · 2026-11-02
 
 - WSL 下崩溃说明页面改用 Windows 的默认浏览器直接打开。0.2.0 经 `.html` 文件的打开方式设置打开，没设的电脑会弹“你要如何打开这个文件”；在用户的 WSL 上实测改后直接进默认浏览器；还会把页面复制到 Windows 临时目录，现在不再复制，页面只留在 `~/.dsh/logs/dsh-sentinel/`。
