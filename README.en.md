@@ -115,6 +115,8 @@ When DSH crashes (for example a plugin throws an error nobody handles and the wh
 - An **emergency DSH** starts from the official default configuration (profile `sentinel-rescue`) with no third-party plugins. Its workspace is the broken profile directory, so its agent can help you fix it.
 - A page opens in your browser: it says DSH crashed, that you are now in the emergency DSH, what the likely cause is, and gives a help prompt you can paste to the agent. Under WSL a Windows notification is shown too.
 
+The page is a local file, so the address bar shows `file:///…`: it opens even though DSH has stopped and needs no server. Under WSL it is copied to the Windows temp folder (`%TEMP%\dsh-sentinel\`) first, because Windows treats files under `\\wsl.localhost` as a network location and asks before opening them.
+
 It never changes your configuration. Once fixed, stop the emergency DSH with the command on the page and start DSH as usual.
 
 ### Making it work
