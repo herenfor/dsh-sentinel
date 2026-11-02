@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
 import { test } from 'node:test'
 import { buildReport, guessCulprit, isCrash, mask, profileFromArgv, reportMarkdown, warningPage } from '../crash-report.mjs'
 import { watch } from '../crash-watchdog.mjs'
 import { parseArgs, rescueCommand } from '../bin/dsh-sentinel-run.mjs'
+import { sweepStaleRuns } from '../crash-guard.mjs'
 
 const posix = sep === '/'
 
@@ -113,4 +114,20 @@ test('watchdog: plugin turned off while DSH keeps running → the watchdog quits
   writeFileSync(runFile, JSON.stringify({ pid: process.pid, dshHome: home }))
   writeFileSync(join(runs, `${process.pid}-1.disposed`), '')
   assert.equal((await watch(runFile, { poll: 20, grace: 100 })).outcome, 'turned-off')
+})
+
+test('records of runs whose DSH is gone are swept at startup; live and recent ones stay', () => {
+  const runs = mkdtempSync(join(tmpdir(), 'sentinel-runs-'))
+  const dead = 2 ** 22 + 12345  // above Linux pid_max defaults: never a live process
+  const files = {
+    [`${dead}-1.json`]: { pid: dead }, [`${dead}-1.disposed`]: '', [`${dead}.exit.json`]: { code: 130 },
+    [`${process.pid}-1.json`]: { pid: process.pid }, [`${process.pid}.exit.json`]: {},
+    'lone.exit.json': { code: 0 }, 'fresh-1.json': { pid: dead },
+  }
+  for (const [name, body] of Object.entries(files)) {
+    writeFileSync(join(runs, name), typeof body === 'string' ? body : JSON.stringify(body))
+    if (name !== 'fresh-1.json') utimesSync(join(runs, name), new Date(0), new Date(0))
+  }
+  sweepStaleRuns(runs)
+  assert.deepEqual(readdirSync(runs).sort(), [`${process.pid}-1.json`, `${process.pid}.exit.json`, 'fresh-1.json'])
 })

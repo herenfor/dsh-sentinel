@@ -2,7 +2,7 @@
 // uncaught error, and the exit code. A detached watchdog (crash-watchdog.mjs) outlives the host and does the
 // rescue. Under dsh-sentinel-run (DSH_SENTINEL_SUPERVISED=1) the launcher is the parent and rescues instead.
 import { spawn } from 'node:child_process'
-import { mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -36,6 +36,36 @@ function installProcessHooks() {
   })
 }
 
+const alive = (pid) => { try { process.kill(pid, 0); return true } catch (error) { return error.code === 'EPERM' } }
+
+/** Remove records of runs whose DSH is gone. The watchdog normally does this; if it was killed too (OOM, a
+ * kill of the whole process group), the files would otherwise stay forever. Recent files are left alone so a
+ * watchdog that is still handling an exit keeps its records. */
+export function sweepStaleRuns(runs, { now = Date.now(), minAgeMs = 60_000 } = {}) {
+  let names
+  try { names = readdirSync(runs) } catch { return [] }
+  const old = (name) => { try { return now - statSync(join(runs, name)).mtimeMs > minAgeMs } catch { return false } }
+  const deadRuns = new Set(), liveRuns = new Set()
+  for (const name of names) {
+    const m = /^(.+)-\d+\.json$/.exec(name)
+    if (m === null) continue
+    let pid
+    try { pid = JSON.parse(readFileSync(join(runs, name), 'utf8')).pid } catch {}
+    ;(Number.isInteger(pid) && alive(pid) ? liveRuns : deadRuns).add(m[1])
+  }
+  const removed = []
+  for (const name of names) {
+    const runId = /^(.+?)(?:-\d+\.(?:json|disposed)|\.exit\.json)$/.exec(name)?.[1]
+    if (runId === undefined || liveRuns.has(runId) || !old(name)) continue
+    // A lone exit or disposed marker (its run file already removed) is stale too.
+    if (deadRuns.has(runId) || !names.some((n) => n.startsWith(`${runId}-`) && n.endsWith('.json'))) {
+      rmSync(join(runs, name), { force: true })
+      removed.push(name)
+    }
+  }
+  return removed
+}
+
 let applies = 0
 
 export function apply(ctx, config) {
@@ -57,6 +87,7 @@ export function apply(ctx, config) {
   const runFile = join(runs, `${applyId}.json`)
   try {
     mkdirSync(runs, { recursive: true, mode: 0o700 })
+    sweepStaleRuns(runs)
     writeFileSync(runFile, JSON.stringify(run), { mode: 0o600 })
   } catch (error) {
     ctx.logger.warn(`dsh-sentinel crash guard is off: ${String(error)}`)
