@@ -114,6 +114,36 @@ window.__ModuleLoader__.load({
           name: 'settings.section', id: 'task-notify', order: 90, label: () => '任务通知',
         }, NotificationSettings)))
 
+        // Plugin health: reads /dsh-sentinel/health.json, served only while the optional health check is enabled.
+        function HealthSettings() {
+          const [state, setState] = React.useState({ loading: true })
+          React.useEffect(() => {
+            let alive = true
+            window.fetch(new URL('dsh-sentinel/health.json', window.document.baseURI), { credentials: 'same-origin', cache: 'no-store' })
+              .then(async (r) => (r.ok && (r.headers.get('content-type') ?? '').includes('json') ? { report: await r.json() } : { off: true }))
+              .catch(() => ({ error: true }))
+              .then((next) => { if (alive) setState(next) })
+            return () => { alive = false }
+          }, [])
+          const p = (text, extra) => React.createElement('p', extra ?? null, text)
+          const body = state.loading ? [p('正在检查…')]
+            : state.error ? [p('读取失败，请刷新页面再试。')]
+            : state.off ? [p('插件健康检查没有启用。启用后，DSH 启动时和之后每分钟检查一次已启用的插件，有插件没正常运行时发 Windows 通知。'),
+              p('启用方法：在 cordis.patch.yml 里加上下面两行，然后重启 DSH。'),
+              React.createElement('pre', { style: { padding: '10px', overflowX: 'auto' } }, '- id: sentinel-health\n  disabled: false')]
+            : state.report.problems.length === 0 ? [p(`所有已启用的插件（${state.report.enabled} 个）都在正常运行。`, { role: 'status' })]
+            : [p(`${state.report.problems.length} 个已启用的插件没有正常运行：`, { role: 'status' }),
+              React.createElement('ul', { style: { paddingLeft: '20px', display: 'grid', gap: '6px' } }, state.report.problems.map((item) =>
+                React.createElement('li', { key: item.id }, React.createElement('code', null, item.id), '：', item.reason)))]
+          return React.createElement('section', { style: { padding: '20px', display: 'grid', gap: '14px' } },
+            React.createElement('h2', null, '插件健康'),
+            ...body,
+            state.report ? React.createElement('a', { href: new URL('dsh-sentinel/health', window.document.baseURI).href, target: '_blank', rel: 'noopener' }, '打开健康页（界面坏了时也能直接访问）') : null)
+        }
+        disposers.push(ctx.slots.inject('settings.section', () => ctx.slots.register({
+          name: 'settings.section', id: 'sentinel-health', order: 91, label: () => '插件健康',
+        }, HealthSettings)))
+
         if (supported) {
           const storageChanged = (event) => {
             if (event.key !== enabledKey) return

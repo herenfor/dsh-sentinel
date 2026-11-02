@@ -8,6 +8,7 @@ $notificationTexts = @{
     approval = @('需要审批', '有操作在等你批准。')
     question = @('需要你回答', 'AI 向你提了问题。')
     crashed = @('DSH 崩溃了', '已打开紧急 DSH 和说明页面。')
+    plugins = @('有插件没正常运行', '在 设置 → 插件健康 查看是哪个、为什么。')
 }
 $notificationText = $notificationTexts['completed']
 if ($notificationKind -and $notificationTexts.ContainsKey([string]$notificationKind)) { $notificationText = $notificationTexts[[string]$notificationKind] }

@@ -5,3 +5,7 @@
     # Crash protection: records crashes and, after one, opens an emergency DSH and a warning page.
     - id: sentinel-crash-guard
       name: ./crash-guard.mjs
+    # Plugin health check (optional): lists enabled plugins that are not running. Enable with `disabled: false`.
+    - id: sentinel-health
+      name: ./plugin-health.mjs
+      disabled: true

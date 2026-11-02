@@ -6,7 +6,7 @@
 
 [中文](README.md) | English
 
-Looks after DeepSeek Harness from outside its main process: notifies you when a turn finishes and starts or stops DSH from a tray icon. When DSH crashes, it opens an emergency DSH and a page that explains what happened.
+Looks after DeepSeek Harness from outside its main process: notifies you when a turn finishes and starts or stops DSH from a tray icon. When DSH crashes, it opens an emergency DSH and a page that explains what happened; an optional plugin health check tells you which plugins failed to load.
 
 This repository succeeds [dsh-task-notify](https://github.com/herenfor/dsh-task-notify), which is no longer updated.
 
@@ -44,7 +44,7 @@ The Minimal preset within the Web profile is supported. The separate `headless`,
 Run this in WSL:
 
 ```bash
-dsh plugin --profile web add github:herenfor/dsh-sentinel#v0.2.2
+dsh plugin --profile web add github:herenfor/dsh-sentinel#v0.3.0
 ```
 
 Wait for active tasks to finish, restart DSH, and refresh its browser page. The plugin loads automatically; no source path needs to be added by hand.
@@ -168,6 +168,32 @@ Use `disabled: true` to turn it off. The launcher also accepts `--no-rescue`, `-
 - The emergency DSH shares `~/.dsh` with the original (sessions, sign-in and API keys) and needs the `dsh` command line; the DSH desktop app is not supported.
 - Only one emergency DSH runs at a time; another crash while it is open updates the report and page.
 - Tested on DSH `0.2.1-rc.5` under WSL: crash while running, startup failure from a broken config, and no alarm on a normal stop.
+
+## Plugin health check (optional, off by default)
+
+When a plugin fails to load (two plugins register the same tool, a plugin throws on import, a service it needs is missing), DSH only logs a warning and keeps running, so it is easy to miss. This check finds them:
+
+- After DSH starts, and every minute after, it checks the enabled plugins and lists the ones that are not running, with the reason when known.
+- A new problem raises one Windows notification (each problem only once).
+- See Settings → 插件健康, or open `http://127.0.0.1:<port>/dsh-sentinel/health` directly. That page does not depend on the chat UI, so it works when the UI is broken; you need to have signed in to DSH in the same browser.
+
+It only reads plugin state; it never disables or changes a plugin.
+
+To enable, add these lines to your own `cordis.patch.yml` and restart DSH:
+
+```yaml
+- id: sentinel-health
+  disabled: false
+```
+
+Add `config: { notify: false }` to skip the Windows notification.
+
+What it cannot do:
+
+- When a plugin fails on import, DSH does not keep the reason; the check says "not started" and the reason is in the DSH startup log.
+- It only sees plugins in the DSH host. A browser-side failure is shown by DSH itself as Failed to load plugins.
+- Conflicts that do not throw are invisible, such as two plugins changing the same thing and overriding each other.
+- A crash of the whole DSH is handled by crash protection above, not here.
 
 ## Uninstall
 

@@ -7,7 +7,7 @@ legacy_script=$(wslpath -w "$script_dir/notify-windows.ps1") || exit 1
 
 # Only known kinds reach PowerShell; anything else reads as an ordinary completion.
 case "${1:-}" in
-  completed|asking|approval|question|crashed) kind=$1 ;;
+  completed|asking|approval|question|crashed|plugins) kind=$1 ;;
   *) kind=completed ;;
 esac
 

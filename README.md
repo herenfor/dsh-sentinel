@@ -6,7 +6,7 @@
 
 中文 | [English](README.en.md)
 
-在 DeepSeek Harness 主程序之外照看它：一轮对话结束时提醒你，用托盘启动和停止 DSH。DSH 崩溃时打开紧急 DSH 和说明页面，帮你把它修好。
+在 DeepSeek Harness 主程序之外照看它：一轮对话结束时提醒你，用托盘启动和停止 DSH。DSH 崩溃时打开紧急 DSH 和说明页面，帮你把它修好；可选的插件健康检查会告诉你哪些插件没加载上。
 
 本仓库接替 [dsh-task-notify](https://github.com/herenfor/dsh-task-notify)，那边不再更新。
 
@@ -44,7 +44,7 @@ Web 里的 minimal 预设可以使用。独立的 `headless`、`sdk` 和 `sdk-mi
 在 WSL 终端运行：
 
 ```bash
-dsh plugin --profile web add github:herenfor/dsh-sentinel#v0.2.2
+dsh plugin --profile web add github:herenfor/dsh-sentinel#v0.3.0
 ```
 
 安装后，等当前任务结束，再重启 DSH 并刷新浏览器页面。插件会自动加载，无需手动添加源码路径。
@@ -168,6 +168,32 @@ DSH_SENTINEL_CRASH_TEST=10 dsh web
 - 紧急 DSH 和原来的 DSH 共用 `~/.dsh`（会话、登录、API key 都在），需要 `dsh` 命令行；桌面版 DSH 不支持。
 - 同一时间只有一个紧急 DSH：它还开着时再次崩溃，只会更新报告和页面。
 - 在 DSH `0.2.1-rc.5`（WSL）下实测过：运行中崩溃、配置写坏后启动失败、正常停止不报警。
+
+## 插件健康检查（可选，默认关闭）
+
+DSH 里某个插件没加载上时（比如两个插件注册了同名工具、插件导入就报错、它依赖的服务不存在），DSH 只在终端日志里留一条警告，照常运行，你往往发现不了。这个检查会把它们找出来：
+
+- DSH 启动后，以及之后每分钟，检查一次已启用的插件，列出没有正常运行的，并尽量给出原因；
+- 出现新的问题时发一条 Windows 通知（同一个问题只提醒一次）；
+- 在 设置 → 插件健康 里查看；也可以直接打开 `http://127.0.0.1:<端口>/dsh-sentinel/health`。这是一个独立页面，聊天界面坏了也能打开，需要先在同一个浏览器里登录过 DSH。
+
+它只读取插件的状态，不会停用或修改任何插件。
+
+启用：在自己的 `cordis.patch.yml` 里加上下面两行，然后重启 DSH。
+
+```yaml
+- id: sentinel-health
+  disabled: false
+```
+
+不要 Windows 通知可以再加 `config: { notify: false }`。
+
+做不到的：
+
+- 插件导入就失败时，DSH 不保存原因，这里只能写“没有启动”，原因要看 DSH 的启动日志。
+- 只看服务端（DSH 主程序）的插件。浏览器端没加载上的，DSH 自己会显示 Failed to load plugins。
+- 不报错的冲突看不出来，比如两个插件改了同一样东西、结果互相覆盖。
+- DSH 整个崩溃时由上面的崩溃防护处理，不归它管。
 
 ## 卸载
 

@@ -1,6 +1,6 @@
 {
   "name": "dsh-sentinel",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -48,6 +48,7 @@
   "files": [
     "task-notify.mjs",
     "crash-guard.mjs",
+    "plugin-health.mjs",
     "crash-watchdog.mjs",
     "crash-report.mjs",
     "rescue.mjs",
