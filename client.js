@@ -128,7 +128,7 @@ window.__ModuleLoader__.load({
           const p = (text, extra) => React.createElement('p', extra ?? null, text)
           const body = state.loading ? [p('正在检查…')]
             : state.error ? [p('读取失败，请刷新页面再试。')]
-            : state.off ? [p('插件健康检查没有启用。启用后，DSH 启动时和之后每分钟检查一次已启用的插件，有插件没正常运行时发 Windows 通知。'),
+            : state.off ? [p('插件健康检查没有启用。启用后，DSH 启动完成时检查一次已启用的插件，之后插件状态有变化（热重载、安装或启停插件）时再查；有插件没正常运行时发 Windows 通知。'),
               p('启用方法：在 cordis.patch.yml 里加上下面两行，然后重启 DSH。'),
               React.createElement('pre', { style: { padding: '10px', overflowX: 'auto' } }, '- id: sentinel-health\n  disabled: false')]
             : state.report.problems.length === 0 ? [p(`所有已启用的插件（${state.report.enabled} 个）都在正常运行。`, { role: 'status' })]

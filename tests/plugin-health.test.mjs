@@ -32,9 +32,10 @@ test('the health page lists problems, or says all is well', () => {
 })
 
 function fakeCtx(entries, admitted = true) {
-  const routes = new Map(), effects = [], warnings = []
+  const routes = new Map(), effects = [], warnings = [], listeners = new Map()
   return {
-    routes, effects, warnings,
+    routes, effects, warnings, listeners,
+    on: (event, fn) => listeners.set(event, fn),
     loader: { await: async () => {}, entries: () => entries },
     connection: { admit: () => (admitted ? { peer: {} } : { rejection: 401 }) },
     webServer: { register: (route) => { routes.set(route.path, route.handler); return () => routes.delete(route.path) } },
@@ -48,11 +49,11 @@ const call = (handler) => {
   return res
 }
 
-test('routes need DSH sign-in and report current state; new problems warn once', async () => {
+test('routes need DSH sign-in; checks once after start, then only when plugin state changes', async () => {
   process.env.DSH_HOME = mkdtempSync(join(tmpdir(), 'sentinel-health-'))
   const entries = [row('ok', { state: 2 }), row('boom', { state: 3, _error: 'Error: x' })]
   const ctx = fakeCtx(entries)
-  apply(ctx, { notify: false, settleSeconds: 0.01, intervalSeconds: 0.02 })
+  apply(ctx, { notify: false, settleSeconds: 0.01, debounceMs: 10 })
   const json = call(ctx.routes.get('/dsh-sentinel/health.json'))
   assert.equal(json.status, 200)
   assert.deepEqual(JSON.parse(json.body).problems.map((p) => p.id), ['boom'])
@@ -60,9 +61,18 @@ test('routes need DSH sign-in and report current state; new problems warn once',
   const denied = fakeCtx(entries, false)
   apply(denied, { notify: false, settleSeconds: 60 })
   assert.equal(call(denied.routes.get('/dsh-sentinel/health.json')).status, 401)
-  await new Promise((r) => setTimeout(r, 120))  // several scans
+  await new Promise((r) => setTimeout(r, 60))
   assert.equal(ctx.warnings.length, 1)
   assert.match(ctx.warnings[0], /boom/)
+  await new Promise((r) => setTimeout(r, 60))
+  assert.equal(ctx.warnings.length, 1)  // no polling: nothing changed, nothing checked
+  entries.push(row('late', { state: 3, _error: 'Error: y' }))
+  for (const i of [1, 2, 3]) ctx.listeners.get('internal/status')()  // a reload: several changes, one check
+  await new Promise((r) => setTimeout(r, 60))
+  assert.equal(ctx.warnings.length, 2)
+  assert.match(ctx.warnings[1], /late/)
+  assert.doesNotMatch(ctx.warnings[1], /boom/)  // already reported
+  assert.ok(ctx.listeners.has('loader/entry-init'))
   for (const fn of [...ctx.effects, ...denied.effects]) if (typeof fn === 'function') fn()
   assert.equal(ctx.routes.size, 0)
 })

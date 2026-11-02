@@ -173,7 +173,7 @@ Use `disabled: true` to turn it off. The launcher also accepts `--no-rescue`, `-
 
 When a plugin fails to load (two plugins register the same tool, a plugin throws on import, a service it needs is missing), DSH only logs a warning and keeps running, so it is easy to miss. This check finds them:
 
-- After DSH starts, and every minute after, it checks the enabled plugins and lists the ones that are not running, with the reason when known.
+- Once DSH has finished starting, it checks the enabled plugins and lists the ones that are not running, with the reason when known. After that it checks again only when plugin state changes (a config reload, installing or toggling a plugin); there is no polling, since plugins only fail at those moments.
 - A new problem raises one Windows notification (each problem only once).
 - See Settings → 插件健康, or open `http://127.0.0.1:<port>/dsh-sentinel/health` directly. That page does not depend on the chat UI, so it works when the UI is broken; you need to have signed in to DSH in the same browser.
 

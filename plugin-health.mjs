@@ -1,5 +1,6 @@
 // Plugin health check (optional, off by default): list plugin entries that are enabled but not running, notify
-// once when new ones appear, and serve /dsh-sentinel/health (a plain page that works even when the chat UI does
+// once when new ones appear. It checks once DSH has finished starting, then only when plugin state changes (no
+// polling: plugins only fail at load, reload, install or enable time), and serve /dsh-sentinel/health (a plain page that works even when the chat UI does
 // not) plus /dsh-sentinel/health.json for the settings section. It only reads the Loader; it changes nothing.
 import { spawn } from 'node:child_process'
 import { appendFile, mkdir } from 'node:fs/promises'
@@ -11,7 +12,8 @@ import { mask } from './crash-report.mjs'
 export const name = 'dsh-sentinel-health'
 export const inject = ['webServer', 'connection']
 
-const DEFAULTS = { notify: true, intervalSeconds: 60, settleSeconds: 5 }
+// debounceMs: several plugins change state together during a reload; check once after they settle.
+const DEFAULTS = { notify: true, settleSeconds: 5, debounceMs: 2000 }
 // Cordis fiber states, as the official plugin inventory reads them.
 const PENDING = 0, FAILED = 3
 const prefix = '/dsh-sentinel'
@@ -109,14 +111,17 @@ export function apply(ctx, config) {
       try { spawn('bash', [notifier, 'plugins'], { detached: true, stdio: 'ignore' }).unref() } catch {}
     }
   }
-  let timer, stopped = false
+  let timer, started = false, stopped = false
+  const schedule = (ms) => { if (stopped) return; clearTimeout(timer); timer = setTimeout(scan, ms) }
   ;(async () => {
     try { await ctx.loader?.await?.() } catch {}
-    if (stopped) return
-    timer = setTimeout(function tick() {
-      scan()
-      if (!stopped && c.intervalSeconds > 0) timer = setTimeout(tick, c.intervalSeconds * 1000)
-    }, c.settleSeconds * 1000)
+    started = true
+    schedule(c.settleSeconds * 1000)
   })()
+  // Cordis emits internal/status on every plugin state change (including a failure), and loader/entry-init when
+  // a reload or install adds an entry; an entry that fails on import emits nothing else.
+  for (const event of ['internal/status', 'loader/entry-init']) {
+    try { ctx.on(event, () => { if (started) schedule(c.debounceMs) }) } catch {}
+  }
   ctx.effect(() => () => { stopped = true; clearTimeout(timer) }, 'dsh-sentinel health scan')
 }
