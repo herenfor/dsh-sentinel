@@ -6,7 +6,7 @@
 
 中文 | [English](README.en.md)
 
-在 DeepSeek Harness 主程序之外照看它：一轮对话结束时提醒你，用托盘启动和停止 DSH。DSH 崩溃时的提醒和救援正在开发。
+在 DeepSeek Harness 主程序之外照看它：一轮对话结束时提醒你，用托盘启动和停止 DSH。DSH 崩溃时打开紧急 DSH 和说明页面，帮你把它修好。
 
 本仓库接替 [dsh-task-notify](https://github.com/herenfor/dsh-task-notify)，那边不再更新。
 
@@ -44,7 +44,7 @@ Web 里的 minimal 预设可以使用。独立的 `headless`、`sdk` 和 `sdk-mi
 在 WSL 终端运行：
 
 ```bash
-dsh plugin --profile web add github:herenfor/dsh-sentinel#v0.1.0
+dsh plugin --profile web add github:herenfor/dsh-sentinel#v0.2.0
 ```
 
 安装后，等当前任务结束，再重启 DSH 并刷新浏览器页面。插件会自动加载，无需手动添加源码路径。
@@ -106,6 +106,66 @@ DSH_TRAY_LOG="$HOME/.cache/my-launcher.log"   # 启动脚本写入 "dsh web: <�
 ```
 
 不想要了，删掉 `%USERPROFILE%\DshTray`、桌面上的“DSH”快捷方式和“启动”文件夹里的 `DSH tray.vbs` 即可。
+
+## 崩溃防护
+
+DSH 崩溃后（比如某个插件抛出没人处理的错误，整个进程退出），自动做三件事：
+
+- 把崩溃报告写到 `~/.dsh/logs/dsh-sentinel/crashes/<时间>/`：退出码、错误、堆栈，以及从堆栈判断的疑似插件；令牌和密钥会打码。
+- 启动一个**紧急 DSH**：用官方默认配置（profile 名 `sentinel-rescue`），不带任何第三方插件，工作区就是出问题的配置目录，可以让里面的 agent 帮你修。
+- 在浏览器里打开一个说明页面，告诉你 DSH 崩溃了、现在打开的是紧急 DSH、疑似原因是什么，并给出一段可以直接发给 agent 的求助说明；在 WSL 下还会发一条 Windows 通知。
+
+它不会改你的任何配置。修好之后，按页面上的命令关掉紧急 DSH，再像平时一样启动。
+
+### 怎样才能生效
+
+崩溃防护分两层，覆盖范围不同：
+
+| 你怎么启动 DSH | 运行中崩溃 | 启动就失败（配置写错、插件装坏） |
+|---|---|---|
+| 装好插件、照常启动 | ✅ | ❌ 插件还没加载，看不到 |
+| 通过启动器 `dsh-sentinel-run` 启动 | ✅ | ✅ |
+
+1. **装好插件并重启 DSH**：运行中的崩溃就有保护了，不用做别的。
+2. **想把"启动就失败"也覆盖上**，DSH 要由启动器启动：
+   - 用托盘图标启动的：托盘默认已经通过启动器启动，不用改（在 `~/.config/dsh-tray/env` 里换成了自己的启动脚本的除外，见下一条）。
+   - 在终端里自己启动的：把命令前面加上启动器，例如
+     ```bash
+     node ~/.dsh/profiles/web/node_modules/dsh-sentinel/bin/dsh-sentinel-run.mjs -- dsh web --port 3080
+     ```
+   - 用自己的启动脚本的：把脚本里调用 `dsh web` 的那一行同样加上 `node ~/.dsh/profiles/web/node_modules/dsh-sentinel/bin/dsh-sentinel-run.mjs --` 前缀。
+
+   启动器会把 DSH 的输出原样转出来，按 Ctrl+C 或托盘的“停止 DSH”正常停止时不会报警。
+
+### 试一下
+
+```bash
+DSH_SENTINEL_CRASH_TEST=10 dsh web
+```
+
+先停掉正在运行的 DSH（或者换个端口，比如加 `--port 3090`）。DSH 会在 10 秒后故意崩溃，应该会看到说明页面和紧急 DSH，报告里标明这是自测。试完按页面上的命令关掉紧急 DSH。
+
+### 设置
+
+在自己的 `cordis.patch.yml` 里改：
+
+```yaml
+- id: sentinel-crash-guard
+  config:
+    rescue: true     # 崩溃后启动紧急 DSH
+    openPage: true   # 打开说明页面
+    notify: true     # 发 Windows 通知
+```
+
+整个关掉写 `disabled: true`。启动器也可以加 `--no-rescue`、`--no-open`、`--no-notify`。
+
+### 限制
+
+- 被 `kill -9` 或系统因内存不足强制结束时，DSH 没有机会留下记录，不会报警。
+- 疑似插件是从堆栈推断的，错误发生在 DSH 自己的代码里时会写"无法判断"。
+- 紧急 DSH 和原来的 DSH 共用 `~/.dsh`（会话、登录、API key 都在），需要 `dsh` 命令行；桌面版 DSH 不支持。
+- 同一时间只有一个紧急 DSH：它还开着时再次崩溃，只会更新报告和页面。
+- 在 DSH `0.2.1-rc.5`（WSL）下实测过：运行中崩溃、配置写坏后启动失败、正常停止不报警。
 
 ## 卸载
 

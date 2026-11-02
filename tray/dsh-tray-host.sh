@@ -41,7 +41,13 @@ case "${1-}" in
     command -v dsh > /dev/null || { printf 'dsh-tray: dsh is not on PATH\n' >&2; finish 1; }
     : > "$log"
     # A new session keeps the server alive after this short-lived wsl.exe call returns.
-    setsid -f bash -c 'echo $$ > "$1"; exec dsh web --no-open --port "$2"' _ "$pid_file" "$port" < /dev/null >> "$log" 2>&1
+    # dsh-sentinel-run watches the server so a crash opens the emergency DSH; without node, start dsh directly.
+    runner="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)/bin/dsh-sentinel-run.mjs"
+    if command -v node > /dev/null && [[ -f "$runner" ]]; then
+      setsid -f bash -c 'echo $$ > "$1"; exec node "$3" -- dsh web --no-open --port "$2"' _ "$pid_file" "$port" "$runner" < /dev/null >> "$log" 2>&1
+    else
+      setsid -f bash -c 'echo $$ > "$1"; exec dsh web --no-open --port "$2"' _ "$pid_file" "$port" < /dev/null >> "$log" 2>&1
+    fi
     ;;
   stop)
     if [[ -n "${DSH_TRAY_STOP-}" ]]; then

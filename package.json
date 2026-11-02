@@ -1,11 +1,14 @@
 {
   "name": "dsh-sentinel",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "exports": {
     ".": "./task-notify.mjs",
     "./client": "./client.js"
+  },
+  "bin": {
+    "dsh-sentinel-run": "./bin/dsh-sentinel-run.mjs"
   },
   "dsh": {
     "bundle": {
@@ -44,6 +47,11 @@
   },
   "files": [
     "task-notify.mjs",
+    "crash-guard.mjs",
+    "crash-watchdog.mjs",
+    "crash-report.mjs",
+    "rescue.mjs",
+    "bin/dsh-sentinel-run.mjs",
     "attention.mjs",
     "background-jobs.mjs",
     "notification-channel.mjs",

@@ -2,3 +2,6 @@
 - insert:
     - id: task-notify
       name: dsh-sentinel
+    # Crash protection: records crashes and, after one, opens an emergency DSH and a warning page.
+    - id: sentinel-crash-guard
+      name: ./crash-guard.mjs

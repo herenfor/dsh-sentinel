@@ -7,6 +7,7 @@ $notificationTexts = @{
     asking = @('等你回答', '本轮已结束，还有问题等你回答。')
     approval = @('需要审批', '有操作在等你批准。')
     question = @('需要你回答', 'AI 向你提了问题。')
+    crashed = @('DSH 崩溃了', '已打开紧急 DSH 和说明页面。')
 }
 $notificationText = $notificationTexts['completed']
 if ($notificationKind -and $notificationTexts.ContainsKey([string]$notificationKind)) { $notificationText = $notificationTexts[[string]$notificationKind] }
