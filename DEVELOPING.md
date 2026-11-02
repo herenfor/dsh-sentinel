@@ -80,7 +80,7 @@ npm pack --dry-run
 
 `notification.log` 记录进程 ID、会话 ID、发送结果和失败信息，不记录对话正文；`server.log` 可能包含私有启动链接。两者均不进入 Git 和发布包。报告问题前，请去除日志中的私有地址和会话信息。
 
-参与开发请看 [贡献指南](CONTRIBUTING.md)，版本变化请看 [更新记录](CHANGELOG.md)。问题反馈使用 [GitHub Issues](https://github.com/herenfor/dsh-task-notify/issues)。
+参与开发请看 [贡献指南](CONTRIBUTING.md)，版本变化请看 [更新记录](CHANGELOG.md)。问题反馈使用 [GitHub Issues](https://github.com/herenfor/dsh-sentinel/issues)。
 
 ## 打包和分发
 
@@ -91,8 +91,8 @@ npm pack --dry-run
 从本地源码安装：
 
 ```bash
-git clone https://github.com/herenfor/dsh-task-notify.git
-cd dsh-task-notify
+git clone https://github.com/herenfor/dsh-sentinel.git
+cd dsh-sentinel
 dsh plugin --profile web add "$PWD"
 ```
 
@@ -100,10 +100,10 @@ dsh plugin --profile web add "$PWD"
 
 ```bash
 pnpm pack
-dsh plugin --profile web add "$PWD/dsh-task-notify-0.0.3.tgz"
+dsh plugin --profile web add "$PWD/dsh-sentinel-0.1.0.tgz"
 ```
 
-固定提交安装时，使用 `github:herenfor/dsh-task-notify#<commit-sha>`，
+固定提交安装时，使用 `github:herenfor/dsh-sentinel#<commit-sha>`，
 将占位符换成所选提交的完整 SHA。安装或升级后，等待任务结束再重启 DSH。
 
 - [DSH 官方 README](https://github.com/deepseek-ai/deepseek-harness#community-and-support) 推荐在插件仓库添加 `dsh-plugin` topic，便于发现。

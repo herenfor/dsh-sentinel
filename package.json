@@ -1,6 +1,6 @@
 {
-  "name": "dsh-task-notify",
-  "version": "0.0.6",
+  "name": "dsh-sentinel",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -19,14 +19,14 @@
     },
     "manifestVersion": 1
   },
-  "description": "Task completion notifications for DeepSeek Harness, with browser notifications and a Windows fallback.",
+  "description": "Looks after DeepSeek Harness from outside its main process: task completion notifications and a tray launcher.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/herenfor/dsh-task-notify.git"
+    "url": "git+https://github.com/herenfor/dsh-sentinel.git"
   },
-  "homepage": "https://github.com/herenfor/dsh-task-notify#readme",
+  "homepage": "https://github.com/herenfor/dsh-sentinel#readme",
   "bugs": {
-    "url": "https://github.com/herenfor/dsh-task-notify/issues"
+    "url": "https://github.com/herenfor/dsh-sentinel/issues"
   },
   "keywords": [
     "dsh-plugin",

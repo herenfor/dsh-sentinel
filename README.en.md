@@ -1,18 +1,20 @@
-# DSH Task Notify
+# DSH Sentinel
 
 [![MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![DSH](https://img.shields.io/badge/DSH-0.2.x-blue)](#requirements)
-[![Tests](https://github.com/herenfor/dsh-task-notify/actions/workflows/test.yml/badge.svg)](https://github.com/herenfor/dsh-task-notify/actions/workflows/test.yml)
+[![Tests](https://github.com/herenfor/dsh-sentinel/actions/workflows/test.yml/badge.svg)](https://github.com/herenfor/dsh-sentinel/actions/workflows/test.yml)
 
 [中文](README.md) | English
 
-Get a notification when DeepSeek Harness finishes a turn.
+Looks after DeepSeek Harness from outside its main process: notifies you when a turn finishes and starts or stops DSH from a tray icon. Crash alerts and recovery are in development.
+
+This repository succeeds [dsh-task-notify](https://github.com/herenfor/dsh-task-notify), which is no longer updated.
 
 The plugin tries browser notifications first. If no connected page can send one, or delivery fails, it falls back to a Windows notification. You can work in another window and come back when the notification arrives.
 
 This community plugin currently targets **Windows 11 + WSL2**, with DSH running in WSL.
 
-![A DSH task completes and a notification appears after switching to another window](https://raw.githubusercontent.com/herenfor/dsh-task-notify/v0.0.1/assets/demo.gif)
+![A DSH task completes and a notification appears after switching to another window](https://raw.githubusercontent.com/herenfor/dsh-sentinel/v0.0.1/assets/demo.gif)
 
 ## Features
 
@@ -42,12 +44,18 @@ The Minimal preset within the Web profile is supported. The separate `headless`,
 Run this in WSL:
 
 ```bash
-dsh plugin --profile web add github:herenfor/dsh-task-notify#v0.0.5
+dsh plugin --profile web add github:herenfor/dsh-sentinel#v0.1.0
 ```
 
 Wait for active tasks to finish, restart DSH, and refresh its browser page. The plugin loads automatically; no source path needs to be added by hand.
 
 If you previously loaded a test version through a local path, remove the old `task-notify` entry from your profile patch so it does not override the installed version.
+
+If you installed dsh-task-notify before, remove it first, then install this package; your notification settings are kept:
+
+```bash
+dsh plugin --profile web remove dsh-task-notify
+```
 
 ## Enable browser notifications
 
@@ -84,7 +92,7 @@ The package also ships an optional Windows tray icon that treats DSH like an ord
 It is not a DSH plugin, so install it once from WSL:
 
 ```bash
-bash ~/.dsh/profiles/web/node_modules/dsh-task-notify/tray/install.sh
+bash ~/.dsh/profiles/web/node_modules/dsh-sentinel/tray/install.sh
 ```
 
 The files go to `%USERPROFILE%\DshTray`. The installer asks whether to add a "DSH" desktop shortcut (default yes) and whether to show the icon at sign-in (default no; it only shows the icon and does not start DSH). `--desktop` / `--no-desktop` and `--autostart` / `--no-autostart` answer these up front, and `--port` sets the port when DSH does not listen on 3080. Then start it from the "DSH" desktop shortcut or `start-dsh-tray.vbs` in `%USERPROFILE%\DshTray`.
@@ -102,7 +110,7 @@ To remove it, delete `%USERPROFILE%\DshTray`, the "DSH" desktop shortcut, and `D
 ## Uninstall
 
 ```bash
-dsh plugin --profile web remove dsh-task-notify
+dsh plugin --profile web remove dsh-sentinel
 ```
 
 Restart DSH after removal. The display name and icon already registered in Windows remain in place.
@@ -113,7 +121,7 @@ Restart DSH after removal. The display name and icon already registered in Windo
 - **Test Windows notifications separately:** Run `./notify-windows.sh` from the plugin source directory in WSL.
 - **Notification settings are missing:** Check that you are using the `web` profile, have restarted DSH and refreshed the page, and have removed any old test-version profile entry.
 
-For other problems, open an [issue](https://github.com/herenfor/dsh-task-notify/issues) with your DSH version, browser, and reproduction steps. Remove credentials, private startup links, and session information before sharing logs.
+For other problems, open an [issue](https://github.com/herenfor/dsh-sentinel/issues) with your DSH version, browser, and reproduction steps. Remove credentials, private startup links, and session information before sharing logs.
 
 ## Development
 

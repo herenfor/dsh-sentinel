@@ -1,18 +1,20 @@
-# DSH Task Notify · 任务完成通知
+# DSH Sentinel
 
 [![MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![DSH](https://img.shields.io/badge/DSH-0.2.x-blue)](#使用环境)
-[![测试](https://github.com/herenfor/dsh-task-notify/actions/workflows/test.yml/badge.svg)](https://github.com/herenfor/dsh-task-notify/actions/workflows/test.yml)
+[![测试](https://github.com/herenfor/dsh-sentinel/actions/workflows/test.yml/badge.svg)](https://github.com/herenfor/dsh-sentinel/actions/workflows/test.yml)
 
 中文 | [English](README.en.md)
 
-让 DeepSeek Harness 在一轮对话结束后提醒你。
+在 DeepSeek Harness 主程序之外照看它：一轮对话结束时提醒你，用托盘启动和停止 DSH。DSH 崩溃时的提醒和救援正在开发。
+
+本仓库接替 [dsh-task-notify](https://github.com/herenfor/dsh-task-notify)，那边不再更新。
 
 插件优先使用浏览器通知。如果浏览器没有打开、没有通知权限，或者发送失败，就改用 Windows 系统通知。你可以切到别的窗口做事，收到提醒后再回来查看结果。
 
 这是一个社区插件，目前主要在 **Windows 11 + WSL2** 环境下使用。
 
-![DSH 执行任务，切到其他窗口后收到完成通知](https://raw.githubusercontent.com/herenfor/dsh-task-notify/v0.0.1/assets/demo.gif)
+![DSH 执行任务，切到其他窗口后收到完成通知](https://raw.githubusercontent.com/herenfor/dsh-sentinel/v0.0.1/assets/demo.gif)
 
 ## 功能
 
@@ -42,12 +44,18 @@ Web 里的 minimal 预设可以使用。独立的 `headless`、`sdk` 和 `sdk-mi
 在 WSL 终端运行：
 
 ```bash
-dsh plugin --profile web add github:herenfor/dsh-task-notify#v0.0.6
+dsh plugin --profile web add github:herenfor/dsh-sentinel#v0.1.0
 ```
 
 安装后，等当前任务结束，再重启 DSH 并刷新浏览器页面。插件会自动加载，无需手动添加源码路径。
 
 如果之前用本地路径手动加载过测试版，请删除 profile 中旧的 `task-notify` 条目，避免它覆盖新安装的版本。
+
+以前装过 dsh-task-notify 的，先卸载它再安装本包，通知设置会保留：
+
+```bash
+dsh plugin --profile web remove dsh-task-notify
+```
 
 ## 开启浏览器通知
 
@@ -84,7 +92,7 @@ Install-Module BurntToast -RequiredVersion 1.1.0 -Scope CurrentUser
 它不是 DSH 插件，需要单独安装一次。在 WSL 里运行：
 
 ```bash
-bash ~/.dsh/profiles/web/node_modules/dsh-task-notify/tray/install.sh
+bash ~/.dsh/profiles/web/node_modules/dsh-sentinel/tray/install.sh
 ```
 
 文件会复制到 `%USERPROFILE%\DshTray`。安装时会问两件事：要不要在桌面创建“DSH”快捷方式（默认要），以及要不要开机时显示托盘图标（默认不要；开机只显示图标，不启动 DSH）。也可以直接用 `--desktop` / `--no-desktop`、`--autostart` / `--no-autostart` 指定；DSH 不在 3080 端口时用 `--port`。之后双击桌面上的“DSH”，或者 `%USERPROFILE%\DshTray` 里的 `start-dsh-tray.vbs` 启动。
@@ -102,7 +110,7 @@ DSH_TRAY_LOG="$HOME/.cache/my-launcher.log"   # 启动脚本写入 "dsh web: <�
 ## 卸载
 
 ```bash
-dsh plugin --profile web remove dsh-task-notify
+dsh plugin --profile web remove dsh-sentinel
 ```
 
 卸载后重启 DSH。Windows 中已经登记的通知名称和图标会保留。
@@ -113,7 +121,7 @@ dsh plugin --profile web remove dsh-task-notify
 - **想单独测试 Windows 通知**：在插件源码目录中，从 WSL 运行 `./notify-windows.sh`。
 - **安装后看不到“任务通知”设置**：确认正在使用 `web` profile，已重启 DSH 并刷新页面；检查是否还留有旧测试版的手动配置。
 
-仍有问题，可以到 [Issues](https://github.com/herenfor/dsh-task-notify/issues) 反馈，附上 DSH 版本、浏览器和复现步骤。分享日志前，请去掉凭证、私有启动链接和会话信息。
+仍有问题，可以到 [Issues](https://github.com/herenfor/dsh-sentinel/issues) 反馈，附上 DSH 版本、浏览器和复现步骤。分享日志前，请去掉凭证、私有启动链接和会话信息。
 
 ## 参与开发
 
