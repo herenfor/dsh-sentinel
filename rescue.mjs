@@ -1,9 +1,9 @@
 // Rescue after a crash: write the report and warning page, start an emergency DSH from the official web template,
 // then open the page. Shared by the in-process watchdog and the dsh-sentinel-run launcher.
 import { spawn, spawnSync } from 'node:child_process'
-import { closeSync, copyFileSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { basename, dirname, join } from 'node:path'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { helpPrompt, mask, reportMarkdown, warningPage } from './crash-report.mjs'
 
@@ -28,19 +28,20 @@ export function liveRescue(dir) {
 const isWsl = () => Boolean(process.env.WSL_DISTRO_NAME) || (() => { try { return /microsoft/i.test(readFileSync('/proc/sys/kernel/osrelease', 'utf8')) } catch { return false } })()
 const has = (cmd) => spawnSync('sh', ['-c', `command -v ${cmd}`], { stdio: 'ignore' }).status === 0
 
-// Windows treats a page under \\wsl.localhost as a network location and asks before opening it, so under WSL
-// the page is copied to the Windows temp folder first. Returns the copy, or undefined to open the original.
-function windowsCopy(file) {
-  const temp = spawnSync('cmd.exe', ['/c', 'echo %TEMP%'], { cwd: '/mnt/c', encoding: 'utf8' }).stdout?.trim()
-  if (!temp || temp.includes('%')) return undefined
-  const dir = spawnSync('wslpath', ['-u', temp], { encoding: 'utf8' }).stdout?.trim()
-  if (!dir) return undefined
-  try {
-    mkdirSync(join(dir, 'dsh-sentinel'), { recursive: true })
-    const copy = join(dir, 'dsh-sentinel', `${basename(dirname(file))}.html`)
-    copyFileSync(file, copy)
-    return copy
-  } catch { return undefined }
+// Start the browser registered for http links with the page. Opening the .html file itself goes through the
+// .html file association, which many machines leave unset, so Windows asks which app to use.
+const DEFAULT_BROWSER_PS = `
+$id = (Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\http\\UserChoice' -ErrorAction Stop).ProgId
+$c = (Get-ItemProperty -LiteralPath "Registry::HKEY_CLASSES_ROOT\\$id\\shell\\open\\command" -ErrorAction Stop).'(default)'
+if ($c -match '^\\s*"([^"]+)"\\s*(.*)$') { $exe = $Matches[1]; $rest = $Matches[2] } else { $exe, $rest = $c -split ' ', 2 }
+if ($rest -match '%1') { $rest = $rest.Replace('%1', $page) } else { $rest = "$rest \`"$page\`"" }
+Start-Process -FilePath $exe -ArgumentList $rest
+`
+function openWithDefaultBrowser(winPath) {
+  const script = `$page = '${winPath.replaceAll("'", "''")}'\n${DEFAULT_BROWSER_PS}`
+  const encoded = Buffer.from(script, 'utf16le').toString('base64')
+  const r = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], { cwd: '/mnt/c', stdio: 'ignore', timeout: 15_000 })
+  return r.status === 0
 }
 
 /** Open a file in the default browser. Best effort; returns whether an opener was started. */
@@ -49,8 +50,9 @@ export function openInBrowser(file) {
   if (process.platform === 'win32') [cmd, args] = ['cmd.exe', ['/c', 'start', '', file]]
   else if (process.platform === 'darwin') [cmd, args] = ['open', [file]]
   else if (isWsl() && has('explorer.exe')) {
-    const win = spawnSync('wslpath', ['-w', windowsCopy(file) ?? file], { encoding: 'utf8' }).stdout?.trim()
+    const win = spawnSync('wslpath', ['-w', file], { encoding: 'utf8' }).stdout?.trim()
     if (!win) return false
+    if (has('powershell.exe') && openWithDefaultBrowser(win)) return true
     ;[cmd, args] = ['explorer.exe', [win]]
   } else if (has('xdg-open')) [cmd, args] = ['xdg-open', [file]]
   else return false
